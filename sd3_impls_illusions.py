@@ -16,7 +16,7 @@ from dit_embedder import ControlNetEmbedder
 from mmditx import MMDiTX
 from typing import Tuple
 
-from helpers import flip_latent_upside_down
+from helpers import flip_latent_upside_down, merge_denoised_outputs
 
 #################################################################################################
 ### MMDiT Model Wrapping
@@ -359,14 +359,15 @@ def sample_dpmpp_2m(
     conditioning_a, 
     conditioning_b, 
     sigmas,
-    reduction,
-    weighted_mean, 
+    method,
+    method_param, 
     extra_args=None):
     """DPM-Solver++(2M)."""
 
+    ### UPDATE FOR IF DOING INIT_IMAGES ###
     # Combines init latents for first iteration
-    if reduction == "mean":
-        x = ((1 - weighted_mean) * x_a) + (weighted_mean * flip_latent_upside_down(x_b))
+    if method == "mean":
+        x = ((1 - method_param) * x_a) + (method_param * flip_latent_upside_down(x_b))
     else:
         x = torch.stack([x_a, flip_latent_upside_down(x_b)]).mean(0)
 
@@ -391,18 +392,16 @@ def sample_dpmpp_2m(
         denoised_b = model(x_temp, sigmas[i] * s_in, **extra_args)
         denoised_b = flip_latent_upside_down(denoised_b)
 
-        # Stack the denoised predictions
-        denoised_stack = [denoised_a, denoised_b]
-        
-        # Apply reduction method
-        if reduction == 'mean':
-            denoised = ((1 - weighted_mean) * denoised_stack[0]) + (weighted_mean * denoised_stack[1])
-            #denoised = torch.stack(denoised_stack).mean(0)
-        elif reduction == 'alternate':
-            denoised = denoised_stack[i % len(denoised_stack)]
-        else:
-            raise ValueError(f"Unknown reduction method: {reduction}")
-        
+        # sets method _param to iteration
+        if method == "alternate":
+            method_param = i
+
+        denoised = merge_denoised_outputs(
+            denoised_a=denoised_a,
+            denoised_b=denoised_b,
+            method=method,
+            method_param=method_param
+            )
 
         t, t_next = t_fn(sigmas[i]), t_fn(sigmas[i + 1])
         h = t_next - t
@@ -416,54 +415,6 @@ def sample_dpmpp_2m(
 
         old_denoised = denoised
     return x, latents_history
-
-def rotate_tiles(image, num_divisions=4):
-    # image=as_torch_image(image)
-    # Assuming image is a tensor of shape (num_channels, height, width)
-    num_channels, height, width = image.shape
-
-    tile_size=width//num_divisions
-    
-    # Calculate the number of tiles in each dimension
-    tiles_x = width // tile_size
-    tiles_y = height // tile_size
-
-    # Initialize an output tensor
-    output = torch.zeros_like(image)
-
-    for x in range(tiles_x):
-        for y in range(tiles_y):
-            # Extract the tile
-            tile = image[:, y*tile_size:(y+1)*tile_size, x*tile_size:(x+1)*tile_size]
-
-            # Check if the tile should be rotated 90 or -90 degrees (checker pattern)
-            if (x + y) % 2 == 0:
-                # Rotate 90 degrees
-                tile = tile.rot90(1, [1, 2])
-            else:
-                # Rotate -90 degrees
-                tile = tile.rot90(-1, [1, 2])
-
-            # Place the rotated tile back in the output tensor
-            output[:, y*tile_size:(y+1)*tile_size, x*tile_size:(x+1)*tile_size] = tile
-
-    return output
-
-def as_torch_image(image):
-    """
-    Convert an image to a PyTorch tensor.
-    
-    Parameters:
-        image (PIL Image or numpy array): The input image.
-        
-    Returns:
-        torch.Tensor: The image converted to a PyTorch tensor.
-    """
-    if isinstance(image, Image.Image):
-        image = np.array(image)
-    # If image is a numpy array, ensure it's in (H, W, C) format
-    image = image.transpose((2, 0, 1)) if image.ndim == 3 else image
-    return torch.tensor(image).float()
 
 #################################################################################################
 ### VAE

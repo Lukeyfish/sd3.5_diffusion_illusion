@@ -1,0 +1,10 @@
+# Example configuration file (jobs.txt)
+
+# Format: [job_name] parameters
+# Lines starting with # are comments
+# Empty lines are ignored
+
+# Testing different methods
+#[attention] --method attention --method_param 1.0 --steps 50
+#[frequency] --method frequency --method_param 0.5 --steps 50
+[cross_corr] --method cross_corr --method_param 42 --steps 50

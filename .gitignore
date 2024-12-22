@@ -4,6 +4,7 @@ outputs/
 inputs/
 input_images/
 prompts/
+experiments/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

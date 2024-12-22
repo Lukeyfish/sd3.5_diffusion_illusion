@@ -15,12 +15,12 @@ import clip
 
 import fire
 import numpy as np
-import sd3_impls_twistingsquares
+import sd3_impls_illusions
 import torch
 from other_impls import SD3Tokenizer, SDClipModel, SDXLClipG, T5XXLModel
 from PIL import Image, ImageOps
 from safetensors import safe_open
-from sd3_impls_twistingsquares import (
+from sd3_impls_illusions import (
     SDVAE,
     BaseModel,
     CFGDenoiser,
@@ -247,11 +247,13 @@ CONTROLNET_COND_IMAGE = None
 DENOISE = 0.8
 
 # Process for combining images 
-REDUCTION = 'mean'
+METHOD = 'mean'
 
-# Weighted mean amount 
-# (Closer to PROMPT_A) 0.0 <<<<<<< 0.5 (mean) >>>>>>> 1.0 (closer to PROMPT_B)
-WEIGHTED_MEAN = 0.5
+''' Special parameter needed depending on latent combination method
+mean:                       (Closer to PROMPT_A) 0.0 <<<<<<< 0.5 (default) >>>>>>> 1.0 (closer to PROMPT_B)
+attention:                (very sharp attention) 0.1 <<<<<<< 1.0 (default) >>>>>>> 10 (soft attention, uniform blending)
+frequency:  (takes all frequencies from image B) 0.0 <<<<<<< 0.5 (default) >>>>>>> 1.0 (takes all frequencies from image A)'''   
+METHOD_PARAM = 0.5
 
 # Output file path
 OUTDIR = "outputs"
@@ -303,8 +305,8 @@ class SD3Inferencer:
         print("Loading VAE model...")
         self.vae = VAE(vae or model)
 
-        print("Loading CLIP ViT-B/32 Model")
-        self.clip_model, self.clip_preprocess = clip.load('ViT-B/32')
+        #print("Loading CLIP ViT-B/32 Model")
+        #self.clip_model, self.clip_preprocess = clip.load('ViT-B/32')
 
         print("All Models loaded.")
 
@@ -432,8 +434,8 @@ class SD3Inferencer:
         scheduler="linear",
         controlnet_cond=None,
         denoise=1.0,
-        reduction='mean',
-        weighted_mean=0.5,
+        method='mean',
+        method_param=0.5,
         skip_layer_config={},
     ) -> torch.Tensor:
         self.print("Sampling...")
@@ -476,7 +478,7 @@ class SD3Inferencer:
         noise_scaled_b = self.sd3.model.model_sampling.noise_scaling(
             sigmas[0], noise_b, latent_b, self.max_denoise(sigmas)
         )
-        sample_fn = getattr(sd3_impls_twistingsquares, f"sample_{sampler}")
+        sample_fn = getattr(sd3_impls_illusions, f"sample_{sampler}")
         denoiser = (
             SkipLayerCFGDenoiser
             if skip_layer_config.get("scale", 0) > 0
@@ -489,8 +491,8 @@ class SD3Inferencer:
             conditioning_a,
             conditioning_b,
             sigmas,
-            reduction=reduction,
-            weighted_mean=weighted_mean,
+            method=method,
+            method_param=method_param,
             extra_args=extra_args,
         )
         latent = SD3LatentFormat().process_out(latent)
@@ -569,8 +571,8 @@ class SD3Inferencer:
         init_image_a=INIT_IMAGE_A,
         init_image_b=INIT_IMAGE_B,
         denoise=DENOISE,
-        reduction=REDUCTION,
-        weighted_mean=WEIGHTED_MEAN,
+        method=METHOD,
+        method_param=METHOD_PARAM,
         skip_layer_config={},
     ):
         controlnet_cond = None
@@ -622,8 +624,8 @@ class SD3Inferencer:
             scheduler,
             controlnet_cond,
             denoise if init_image_a else 1.0,
-            reduction,
-            weighted_mean,
+            method,
+            method_param,
             skip_layer_config,
         )
         
@@ -632,16 +634,16 @@ class SD3Inferencer:
                 latent = SD3LatentFormat().process_out(sample)
                 image = self.vae_decode(latent)
                 
-                score = calculate_clip_score(image, prompts[0], self.clip_model, self.clip_preprocess)
-                print("CLIP_SCORE:", score, " PROMPT: ", prompts[0])
+                #score = calculate_clip_score(image, prompts[0], self.clip_model, self.clip_preprocess)
+                #print("CLIP_SCORE:", score, " PROMPT: ", prompts[0])
 
-                save_path = generate_filename(out_dir, prompts, step=k)
-                print(save_path)
-                image.save(save_path)
+                #save_path = generate_filename(out_dir, prompts, step=k)
+                #print(save_path)
+                #image.save(save_path)
 
-                image = ImageOps.flip(image)
-                score = calculate_clip_score(image, prompts[1], self.clip_model, self.clip_preprocess)
-                print("CLIP_SCORE:", score, " PROMPT: ", prompts[1])
+                #image = ImageOps.flip(image)
+                #score = calculate_clip_score(image, prompts[1], self.clip_model, self.clip_preprocess)
+                #print("CLIP_SCORE:", score, " PROMPT: ", prompts[1])
 
                 save_path = generate_filename(out_dir, prompts, step=k)
                 print(save_path)
@@ -747,8 +749,8 @@ def main(
     denoise=DENOISE,
     skip_layer_cfg=False,
     verbose=False,
-    reduction=REDUCTION,
-    weighted_mean=WEIGHTED_MEAN,
+    method=METHOD,
+    method_param=METHOD_PARAM,
     model_folder=MODEL_FOLDER,
     text_encoder_device="cpu",
     **kwargs,
@@ -842,8 +844,8 @@ def main(
         init_image_a,
         init_image_b,
         denoise,
-        reduction,
-        weighted_mean,
+        method,
+        method_param,
         skip_layer_config,
     )
 
