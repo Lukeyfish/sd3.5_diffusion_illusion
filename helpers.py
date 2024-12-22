@@ -4,6 +4,7 @@ from PIL import Image
 import clip
 import os
 from datetime import datetime
+import re
 
 def calculate_clip_score(sample, prompt, clip_model, preprocess):
     """
@@ -80,3 +81,15 @@ def save_parameters_to_file(out_dir, params_dict):
             f.write(f"{key}: {value}\n")
             
     return params_file
+
+def sanitize_filename(text):
+    return re.sub(r"[^\w\-\.]+", "_", text)
+
+def generate_outdir_name(prompts, steps, cfg):
+    prompt_part = sanitize_filename(prompts[0])[:30] + sanitize_filename(prompts[1])[:30]  # Limit prompt part for readability
+    timestamp = datetime.datetime.now().strftime("_%Y-%m-%dT%H-%M-%S")
+    return os.path.join(f"{prompt_part}_s{steps}_cfg{cfg}{timestamp}")
+
+def generate_filename(out_dir, prompts, step):
+    prompt_part = sanitize_filename(prompts[0])[:30] + sanitize_filename(prompts[1])[:30]
+    return os.path.join(out_dir, f"{prompt_part}_{step:06d}.png")

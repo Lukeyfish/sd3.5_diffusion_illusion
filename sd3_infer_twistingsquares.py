@@ -31,7 +31,7 @@ from tqdm import tqdm
 
 import torchvision.transforms as transforms
 
-from helpers import calculate_clip_score, save_parameters_to_file
+from helpers import calculate_clip_score, save_parameters_to_file, generate_filename, generate_outdir_name, sanitize_filename
 
 #################################################################################################
 ### Wrappers for model parts
@@ -257,6 +257,10 @@ WEIGHTED_MEAN = 0.5
 OUTDIR = "outputs"
 # SAMPLER
 SAMPLER = "dpmpp_2m"
+
+# SCHEDULER
+SCHEDULER = "linear"
+
 # MODEL FOLDER
 MODEL_FOLDER = "models"
 
@@ -339,7 +343,6 @@ class SD3Inferencer:
         sigs.append(0.0)  # Append final sigma
         
         return torch.FloatTensor(sigs)
-
     
     def get_sigmas_logarithmic(self, sampling, steps):
         start = sampling.timestep(sampling.sigma_max)
@@ -426,6 +429,7 @@ class SD3Inferencer:
         steps,
         cfg_scale,
         sampler="dpmpp_2m",
+        scheduler="linear",
         controlnet_cond=None,
         denoise=1.0,
         reduction='mean',
@@ -440,11 +444,21 @@ class SD3Inferencer:
         noise_a = self.get_noise(seed, latent_a).cuda()
         noise_b = self.get_noise(seed, latent_b).cuda()
 
+        sigma_function_name = f"get_sigmas_{scheduler}"  # e.g., get_sigmas_dpmpp_2m
+        try:
+            # Attempt to get the method dynamically and call it
+            get_sigmas_fn = getattr(self, sigma_function_name)
+            sigmas = get_sigmas_fn(self.sd3.model.model_sampling, steps).cuda()
+        except AttributeError:
+            # Handle the case where the specified method does not exist
+            raise ValueError(f"Unknown sigma scheduler: {scheduler}")
+
 #        sigmas = self.get_sigmas_linear(self.sd3.model.model_sampling, steps).cuda()
-        sigmas = self.get_sigmas_quadratic(self.sd3.model.model_sampling, steps).cuda()
-        print(sigmas)
+        #sigmas = self.get_sigmas_quadratic(self.sd3.model.model_sampling, steps).cuda()
 
         sigmas = sigmas[int(steps * (1 - denoise)) :]
+
+        print(sigma_function_name, sigmas)
 
         conditioning_a = self.fix_cond(conditioning_a)
         conditioning_b = self.fix_cond(conditioning_b)
@@ -547,6 +561,7 @@ class SD3Inferencer:
         steps=STEPS,
         cfg_scale=CFG_SCALE,
         sampler=SAMPLER,
+        scheduler=SCHEDULER,
         seed=SEED,
         seed_type=SEEDTYPE,
         out_dir=OUTDIR,
@@ -604,6 +619,7 @@ class SD3Inferencer:
             steps,
             cfg_scale,
             sampler,
+            scheduler,
             controlnet_cond,
             denoise if init_image_a else 1.0,
             reduction,
@@ -705,17 +721,7 @@ def save_image(image_tensor, save_path):
     # Save the image
     image_pil.save(save_path)
 
-def sanitize_filename(text):
-    return re.sub(r"[^\w\-\.]+", "_", text)
 
-def generate_outdir_name(prompts, steps, cfg):
-    prompt_part = sanitize_filename(prompts[0])[:30] + sanitize_filename(prompts[1])[:30]  # Limit prompt part for readability
-    timestamp = datetime.datetime.now().strftime("_%Y-%m-%dT%H-%M-%S")
-    return os.path.join(f"{prompt_part}_s{steps}_cfg{cfg}{timestamp}")
-
-def generate_filename(out_dir, prompts, step):
-    prompt_part = sanitize_filename(prompts[0])[:30] + sanitize_filename(prompts[1])[:30]
-    return os.path.join(out_dir, f"{prompt_part}_{step:06d}.png")
 
 @torch.no_grad()
 def main(
@@ -727,6 +733,7 @@ def main(
     seed=SEED,
     seed_type=SEEDTYPE,
     sampler=None,
+    scheduler=None,
     steps=None,
     cfg=None,
     shift=None,
@@ -746,7 +753,6 @@ def main(
     text_encoder_device="cpu",
     **kwargs,
 ):
-    breakpoint()
 
     assert not kwargs, f"Unknown arguments: {kwargs}"
 
@@ -755,6 +761,7 @@ def main(
     _steps = steps or config.get("steps", 50)
     _cfg = cfg or config.get("cfg", 5)
     _sampler = sampler or config.get("sampler", "dpmpp_2m")
+    _scheduler = scheduler or config.get("scheduler", "linear")
 
     if skip_layer_cfg:
         skip_layer_config = CONFIGS.get(
@@ -772,6 +779,7 @@ def main(
         _steps = steps or controlnet_config.get("steps", steps)
         _cfg = cfg or controlnet_config.get("cfg", cfg)
         _sampler = sampler or controlnet_config.get("sampler", sampler)
+        _scheduler = scheduler or config.get("scheduler", scheduler)
 
     inferencer = SD3Inferencer()
 
@@ -802,7 +810,6 @@ def main(
 
     print("prompts: ", prompts)
     print("len prompts: ", len(prompts))
-
     
     out_dir = os.path.join(
         out_dir,
@@ -817,11 +824,8 @@ def main(
         generate_outdir_name(prompts, steps, cfg),
     )
     
-
     os.makedirs(out_dir, exist_ok=False)
-
-    save_parameters_to_file(out_dir, locals())
-    breakpoint()
+    save_parameters_to_file(out_dir, locals()) # Save parameters for reproducability
 
     inferencer.gen_image(
         prompts,
@@ -830,6 +834,7 @@ def main(
         _steps,
         _cfg,
         _sampler,
+        _scheduler,
         seed,
         seed_type,
         out_dir,

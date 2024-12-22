@@ -7,14 +7,14 @@ INIT_IMAGE_A="input_images/JAMES_CROPPED.jpg"
 PROMPT_B="prompts/prompt_b.txt"
 INIT_IMAGE_B="input_images/EMMY_CROPPED.jpg"
 MODEL="models/sd3.5_medium.safetensors"
-STEPS=60  # Define steps
-CFG=6 # Define cfg
+STEPS=50  # Define steps
+CFG=7 # Define cfg
 VERBOSE="True"
 DENOISE=1.0 # Define denoise
-REDUCTION="mean" # "mean" # mean or alternate for latent combination
+SCHEDULER="linear" # Sigma scheduler, (linear, quadratic, cosine, logarithmic, custom)
 
-WEIGHTED_MEAN="0.5" # (ONLY APPLIES FOR MEAN REDUCTION) Applies weighted average across latent combination
-# (Closer to PROMPT_A) 0.0 <<<<<<< 0.5 (mean) >>>>>>> 1.0 (closer to PROMPT_B)
+REDUCTION="mean" # "mean" # mean or alternate for latent combination
+WEIGHTED_MEAN="0.1" # (ONLY APPLIES FOR MEAN REDUCTION) Applies weighted average across latent combination | (Closer to PROMPT_A) 0.0 <<<<<<< 0.5 (mean) >>>>>>> 1.0 (closer to PROMPT_B)
 
 SEEDTYPE="fixed" # rand, roll, or fixed for replication
 SKIPLAYERCFG="True" # if True, potentially better struture and anatomy coherency from SD3.5-Medium
@@ -34,4 +34,5 @@ python3 sd3_infer_twistingsquares.py \
     --skip_layer_cfg "$SKIPLAYERCFG" \
     --verbose "$VERBOSE" \
     --reduction "$REDUCTION" \
+    --scheduler "$SCHEDULER" \
     --weighted_mean "$WEIGHTED_MEAN"

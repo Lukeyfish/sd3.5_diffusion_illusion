@@ -364,13 +364,12 @@ def sample_dpmpp_2m(
     extra_args=None):
     """DPM-Solver++(2M)."""
 
-    
-
-    # weighted_mean
-    x = ((1 - weighted_mean) * x_a) + (weighted_mean * flip_latent_upside_down(x_b))
-
     # Combines init latents for first iteration
-    # x = torch.stack([x_a, flip_latent_upside_down(x_b)]).mean(0)
+    if reduction == "mean":
+        x = ((1 - weighted_mean) * x_a) + (weighted_mean * flip_latent_upside_down(x_b))
+    else:
+        x = torch.stack([x_a, flip_latent_upside_down(x_b)]).mean(0)
+
     latents_history = []
 
     extra_args = {} if extra_args is None else extra_args
@@ -397,7 +396,8 @@ def sample_dpmpp_2m(
         
         # Apply reduction method
         if reduction == 'mean':
-            denoised = torch.stack(denoised_stack).mean(0)
+            denoised = ((1 - weighted_mean) * denoised_stack[0]) + (weighted_mean * denoised_stack[1])
+            #denoised = torch.stack(denoised_stack).mean(0)
         elif reduction == 'alternate':
             denoised = denoised_stack[i % len(denoised_stack)]
         else:
