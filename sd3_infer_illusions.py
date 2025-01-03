@@ -17,10 +17,10 @@ import fire
 import numpy as np
 import sd3_impls_illusions
 import torch
-from other_impls import SD3Tokenizer, SDClipModel, SDXLClipG, T5XXLModel
+from sd3_tokenizer import SD3Tokenizer, SDClipModel, SDXLClipG, T5XXLModel
 from PIL import Image, ImageOps
 from safetensors import safe_open
-from sd3_impls_illusions import (
+from sd3_proc_illusions import (
     SDVAE,
     BaseModel,
     CFGDenoiser,
@@ -31,7 +31,7 @@ from tqdm import tqdm
 
 import torchvision.transforms as transforms
 
-from helpers import calculate_clip_score, save_parameters_to_file, generate_filename, generate_outdir_name, sanitize_filename
+from sd3_helpers import calculate_clip_score, save_parameters_to_file, generate_filename, generate_outdir_name, sanitize_filename
 
 #################################################################################################
 ### Wrappers for model parts
@@ -400,7 +400,6 @@ class SD3Inferencer:
         ).to(latent.dtype)
 
     def get_cond(self, prompt):
-        self.print("Encode prompt...")
         tokens = self.tokenizer.tokenize_with_weights(prompt)
         l_out, l_pooled = self.clip_l.model.encode_token_weights(tokens["l"])
         g_out, g_pooled = self.clip_g.model.encode_token_weights(tokens["g"])
@@ -455,9 +454,6 @@ class SD3Inferencer:
             # Handle the case where the specified method does not exist
             raise ValueError(f"Unknown sigma scheduler: {scheduler}")
 
-#        sigmas = self.get_sigmas_linear(self.sd3.model.model_sampling, steps).cuda()
-        #sigmas = self.get_sigmas_quadratic(self.sd3.model.model_sampling, steps).cuda()
-
         sigmas = sigmas[int(steps * (1 - denoise)) :]
 
         print(sigma_function_name, sigmas)
@@ -478,12 +474,14 @@ class SD3Inferencer:
         noise_scaled_b = self.sd3.model.model_sampling.noise_scaling(
             sigmas[0], noise_b, latent_b, self.max_denoise(sigmas)
         )
+
         sample_fn = getattr(sd3_impls_illusions, f"sample_{sampler}")
         denoiser = (
             SkipLayerCFGDenoiser
             if skip_layer_config.get("scale", 0) > 0
             else CFGDenoiser
         )
+
         latent, sample_history = sample_fn(
             denoiser(self.sd3.model, steps, skip_layer_config),
             noise_scaled_a,
@@ -494,7 +492,10 @@ class SD3Inferencer:
             method=method,
             method_param=method_param,
             extra_args=extra_args,
+            SD3Inferencer=self,
+            SD3LatentFormat=SD3LatentFormat
         )
+
         latent = SD3LatentFormat().process_out(latent)
         self.sd3.model = self.sd3.model.cpu()
         self.print("Sampling done")
@@ -628,6 +629,8 @@ class SD3Inferencer:
             method_param,
             skip_layer_config,
         )
+
+        # Calculates the clip_score (How close model is to prompt)
         
         for k, sample in enumerate(sample_history, start=1):
             if (k % 10) == 0:
@@ -702,28 +705,6 @@ CONFIGS = {
         "sampler": "euler",
     },
 }
-
-
-
-def open_image(image_path, width, height) -> torch.Tensor:
-    # Open the image
-    image_data = Image.open(image_path)
-    # Resize the image
-    image_data = image_data.resize((width, height), Image.LANCZOS)
-    
-    # Transform image to PyTorch tensor
-    transform = transforms.ToTensor()
-    image_tensor = transform(image_data)
-    
-    return image_tensor
-
-def save_image(image_tensor, save_path):
-    # Convert tensor back to PIL Image
-    image_pil = transforms.ToPILImage()(image_tensor)
-    # Save the image
-    image_pil.save(save_path)
-
-
 
 @torch.no_grad()
 def main(

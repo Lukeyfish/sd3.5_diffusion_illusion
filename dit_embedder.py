@@ -7,7 +7,7 @@ import torch.nn as nn
 from einops import rearrange
 from torch import Tensor
 
-from mmditx import DismantledBlock, PatchEmbed, VectorEmbedder, TimestepEmbedder
+from sd3_mmditx_illusions import DismantledBlock, PatchEmbed, VectorEmbedder, TimestepEmbedder
 
 class ControlNetEmbedder(nn.Module):
 

@@ -1,0 +1,149 @@
+MMDiTX(
+  (x_embedder): PatchEmbed(
+    (proj): Conv2d(16, 1536, kernel_size=(2, 2), stride=(2, 2))
+  )
+  (t_embedder): TimestepEmbedder(
+    (mlp): Sequential(
+      (0): Linear(in_features=256, out_features=1536, bias=True)
+      (1): SiLU()
+      (2): Linear(in_features=1536, out_features=1536, bias=True)
+    )
+  )
+  (y_embedder): VectorEmbedder(
+    (mlp): Sequential(
+      (0): Linear(in_features=2048, out_features=1536, bias=True)
+      (1): SiLU()
+      (2): Linear(in_features=1536, out_features=1536, bias=True)
+    )
+  )
+  (context_embedder): Linear(in_features=4096, out_features=1536, bias=True)
+  (joint_blocks): ModuleList(
+    (0-12): 13 x JointBlock(
+      (context_block): DismantledBlock(
+        (norm1): LayerNorm((1536,), eps=1e-06, elementwise_affine=False)
+        (attn): SelfAttention(
+          (qkv): Linear(in_features=1536, out_features=4608, bias=True)
+          (proj): Linear(in_features=1536, out_features=1536, bias=True)
+          (ln_q): RMSNorm()
+          (ln_k): RMSNorm()
+        )
+        (norm2): LayerNorm((1536,), eps=1e-06, elementwise_affine=False)
+        (mlp): Mlp(
+          (fc1): Linear(in_features=1536, out_features=6144, bias=True)
+          (act): GELU(approximate='tanh')
+          (fc2): Linear(in_features=6144, out_features=1536, bias=True)
+        )
+        (adaLN_modulation): Sequential(
+          (0): SiLU()
+          (1): Linear(in_features=1536, out_features=9216, bias=True)
+        )
+      )
+      (x_block): DismantledBlock(
+        (norm1): LayerNorm((1536,), eps=1e-06, elementwise_affine=False)
+        (attn): SelfAttention(
+          (qkv): Linear(in_features=1536, out_features=4608, bias=True)
+          (proj): Linear(in_features=1536, out_features=1536, bias=True)
+          (ln_q): RMSNorm()
+          (ln_k): RMSNorm()
+        )
+        (attn2): SelfAttention(
+          (qkv): Linear(in_features=1536, out_features=4608, bias=True)
+          (proj): Linear(in_features=1536, out_features=1536, bias=True)
+          (ln_q): RMSNorm()
+          (ln_k): RMSNorm()
+        )
+        (norm2): LayerNorm((1536,), eps=1e-06, elementwise_affine=False)
+        (mlp): Mlp(
+          (fc1): Linear(in_features=1536, out_features=6144, bias=True)
+          (act): GELU(approximate='tanh')
+          (fc2): Linear(in_features=6144, out_features=1536, bias=True)
+        )
+        (adaLN_modulation): Sequential(
+          (0): SiLU()
+          (1): Linear(in_features=1536, out_features=13824, bias=True)
+        )
+      )
+    )
+    (13-22): 10 x JointBlock(
+      (context_block): DismantledBlock(
+        (norm1): LayerNorm((1536,), eps=1e-06, elementwise_affine=False)
+        (attn): SelfAttention(
+          (qkv): Linear(in_features=1536, out_features=4608, bias=True)
+          (proj): Linear(in_features=1536, out_features=1536, bias=True)
+          (ln_q): RMSNorm()
+          (ln_k): RMSNorm()
+        )
+        (norm2): LayerNorm((1536,), eps=1e-06, elementwise_affine=False)
+        (mlp): Mlp(
+          (fc1): Linear(in_features=1536, out_features=6144, bias=True)
+          (act): GELU(approximate='tanh')
+          (fc2): Linear(in_features=6144, out_features=1536, bias=True)
+        )
+        (adaLN_modulation): Sequential(
+          (0): SiLU()
+          (1): Linear(in_features=1536, out_features=9216, bias=True)
+        )
+      )
+      (x_block): DismantledBlock(
+        (norm1): LayerNorm((1536,), eps=1e-06, elementwise_affine=False)
+        (attn): SelfAttention(
+          (qkv): Linear(in_features=1536, out_features=4608, bias=True)
+          (proj): Linear(in_features=1536, out_features=1536, bias=True)
+          (ln_q): RMSNorm()
+          (ln_k): RMSNorm()
+        )
+        (norm2): LayerNorm((1536,), eps=1e-06, elementwise_affine=False)
+        (mlp): Mlp(
+          (fc1): Linear(in_features=1536, out_features=6144, bias=True)
+          (act): GELU(approximate='tanh')
+          (fc2): Linear(in_features=6144, out_features=1536, bias=True)
+        )
+        (adaLN_modulation): Sequential(
+          (0): SiLU()
+          (1): Linear(in_features=1536, out_features=9216, bias=True)
+        )
+      )
+    )
+    (23): JointBlock(
+      (context_block): DismantledBlock(
+        (norm1): LayerNorm((1536,), eps=1e-06, elementwise_affine=False)
+        (attn): SelfAttention(
+          (qkv): Linear(in_features=1536, out_features=4608, bias=True)
+          (ln_q): RMSNorm()
+          (ln_k): RMSNorm()
+        )
+        (adaLN_modulation): Sequential(
+          (0): SiLU()
+          (1): Linear(in_features=1536, out_features=3072, bias=True)
+        )
+      )
+      (x_block): DismantledBlock(
+        (norm1): LayerNorm((1536,), eps=1e-06, elementwise_affine=False)
+        (attn): SelfAttention(
+          (qkv): Linear(in_features=1536, out_features=4608, bias=True)
+          (proj): Linear(in_features=1536, out_features=1536, bias=True)
+          (ln_q): RMSNorm()
+          (ln_k): RMSNorm()
+        )
+        (norm2): LayerNorm((1536,), eps=1e-06, elementwise_affine=False)
+        (mlp): Mlp(
+          (fc1): Linear(in_features=1536, out_features=6144, bias=True)
+          (act): GELU(approximate='tanh')
+          (fc2): Linear(in_features=6144, out_features=1536, bias=True)
+        )
+        (adaLN_modulation): Sequential(
+          (0): SiLU()
+          (1): Linear(in_features=1536, out_features=9216, bias=True)
+        )
+      )
+    )
+  )
+  (final_layer): FinalLayer(
+    (norm_final): LayerNorm((1536,), eps=1e-06, elementwise_affine=False)
+    (linear): Linear(in_features=1536, out_features=64, bias=True)
+    (adaLN_modulation): Sequential(
+      (0): SiLU()
+      (1): Linear(in_features=1536, out_features=3072, bias=True)
+    )
+  )
+)

@@ -7,14 +7,14 @@ INIT_IMAGE_A="input_images/JAMES_CROPPED.jpg"
 PROMPT_B="prompts/prompt_b.txt"
 INIT_IMAGE_B="input_images/EMMY_CROPPED.jpg"
 MODEL="models/sd3.5_medium.safetensors"
-STEPS=50 
+STEPS=50
 CFG=7 
 VERBOSE="True"
 DENOISE=1.0 
 SCHEDULER="linear" # Sigma scheduler, (linear, quadratic, cosine, logarithmic, custom)
 
-METHOD="attention" # Method for latent combination (mean, alternate, attention, frequency, gradient, feature_mapping)
-METHOD_PARAM=1.0 # Specific kwargs required depending on method, value excluded if not needed:
+METHOD="mean" # Method for latent combination (mean, alternate, attention, frequency, gradient, feature_mapping)
+METHOD_PARAM="0.6" # Specific kwargs required depending on method, value excluded if not needed:
 #     mean:                       (Closer to PROMPT_A) 0.0 <<<<<<< 0.5 (default) >>>>>>> 1.0 (closer to PROMPT_B)
 #     attention:                (very sharp attention) 0.1 <<<<<<< 1.0 (default) >>>>>>> 10 (soft attention, uniform blending)
 #     frequency:  (takes all frequencies from image B) 0.0 <<<<<<< 0.5 (default) >>>>>>> 1.0 (takes all frequencies from image A)
