@@ -4,7 +4,11 @@
 # Lines starting with # are comments
 # Empty lines are ignored
 
-# Testing different methods
-[attention] --method attention --method_param 0.1 --steps 50
-[attention] --method attention --method_param 1.0 --steps 50
-[attention] --method attention --method_param 5.0 --steps 50
+# Testing different methods\
+[merging] --method interpolate --method_param linear --steps 50
+[merging] --method interpolate --method_param exponential --steps 50
+[merging] --method interpolate --method_param sudden --steps 50
+
+[merging] --method crossfade --method_param linear --steps 50
+[merging] --method crossfade --method_param exponential --steps 50
+[merging] --method crossfade --method_param sudden --steps 50

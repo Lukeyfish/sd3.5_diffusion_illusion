@@ -255,6 +255,9 @@ attention:                (very sharp attention) 0.1 <<<<<<< 1.0 (default) >>>>>
 frequency:  (takes all frequencies from image B) 0.0 <<<<<<< 0.5 (default) >>>>>>> 1.0 (takes all frequencies from image A)'''   
 METHOD_PARAM = 0.5
 
+# What type of illusion to generate
+ILLUSION_TYPE = 180
+
 # Output file path
 OUTDIR = "outputs"
 # SAMPLER
@@ -435,6 +438,7 @@ class SD3Inferencer:
         denoise=1.0,
         method='mean',
         method_param=0.5,
+        illusion_type=180,
         skip_layer_config={},
     ) -> torch.Tensor:
         self.print("Sampling...")
@@ -491,6 +495,7 @@ class SD3Inferencer:
             sigmas,
             method=method,
             method_param=method_param,
+            illusion_type=illusion_type,
             extra_args=extra_args,
             SD3Inferencer=self,
             SD3LatentFormat=SD3LatentFormat
@@ -574,6 +579,7 @@ class SD3Inferencer:
         denoise=DENOISE,
         method=METHOD,
         method_param=METHOD_PARAM,
+        illusion_type=ILLUSION_TYPE,
         skip_layer_config={},
     ):
         controlnet_cond = None
@@ -627,6 +633,7 @@ class SD3Inferencer:
             denoise if init_image_a else 1.0,
             method,
             method_param,
+            illusion_type,
             skip_layer_config,
         )
 
@@ -717,6 +724,7 @@ def main(
     seed_type=SEEDTYPE,
     sampler=None,
     scheduler=None,
+    illusion_type=None,
     steps=None,
     cfg=None,
     shift=None,
@@ -827,6 +835,7 @@ def main(
         denoise,
         method,
         method_param,
+        illusion_type,
         skip_layer_config,
     )
 

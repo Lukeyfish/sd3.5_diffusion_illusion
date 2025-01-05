@@ -48,10 +48,92 @@ def calculate_clip_score(sample, prompt, clip_model, preprocess):
     return clip_score
 
 
-def flip_latent_upside_down(latent: torch.Tensor) -> torch.Tensor:
+"""def rotate_latent(latent: torch.Tensor, degree: int) -> torch.Tensor:
+    # Validate the degree input
+    if degree not in [90, 180, 270]:
+        raise ValueError("Degree must be 90, 180, or 270")
+
+    # Rotate the latent tensor based on the degree
+    if degree == 90:
+        rotated_latent = torch.rot90(latent, k=1, dims=[-2, -1])
+    elif degree == 180:
+        rotated_latent = torch.rot90(latent, k=2, dims=[-2, -1])
+    elif degree == 270:
+        rotated_latent = torch.rot90(latent, k=3, dims=[-2, -1])
+    
+    return rotated_latent"""
+'''
+def rotate_latent(latent: torch.Tensor, degree: int) -> torch.Tensor:
         # Flipping the latent tensor upside down (vertically)
         flipped_latent = torch.flip(latent, dims=[-2])
-        return flipped_latent
+        return flipped_latent'''
+
+def flip_latent_with_blend(latent: torch.Tensor, blend_zone: int = 4) -> torch.Tensor:
+    """Flip latent with smooth blending at the boundary"""
+    b, c, h, w = latent.shape
+    flipped = torch.flip(latent, dims=[-2])
+    
+    # Create a blending mask
+    mask = torch.ones_like(latent)
+    for i in range(blend_zone):
+        # Blend middle rows
+        mid = h // 2
+        alpha = i / blend_zone
+        mask[:, :, mid-i:mid+i, :] = alpha
+        
+    return latent * (1 - mask) + flipped * mask
+
+def flip_latent(latent: torch.Tensor, degree: int = 0) -> torch.Tensor:
+    """
+    Flips or rotates a latent tensor based on the specified degree.
+    
+    Args:
+        latent (torch.Tensor): Input tensor of shape [batch_size, channels, height, width]
+        degree (int): Degree of rotation/flip. 
+            - Any degree will be normalized to 0, 90, 180, or 270
+            - Negative degrees work as counter-clockwise rotations
+            - -1 is reserved for vertical flip
+            - 1 is reserved for reverting vertical flip
+    
+    Returns:
+        torch.Tensor: Flipped/rotated tensor with same shape as input
+    
+    Example:
+        For a tensor of shape [1, 16, 128, 128]:
+        - Vertical/horizontal flips will operate on the 128x128 spatial dimensions
+        - Rotations preserve the batch and channel dimensions
+    """
+    # Verify input has 4 dimensions
+    if len(latent.shape) != 4:
+        raise ValueError(f"Expected 4D tensor [batch, channels, height, width], got shape {latent.shape}")
+    
+    # Special cases for vertical flip
+    if degree == -1:
+        return torch.flip(latent, dims=[2])  # Flip height dimension
+    elif degree == 1:  # Revert vertical flip
+        return torch.flip(latent, dims=[2])  # Flip height dimension
+    
+    # Normalize the degree to be between 0 and 360
+    normalized_degree = degree % 360
+    if normalized_degree < 0:
+        normalized_degree += 360
+        
+    # Now convert to one of the four standard rotations
+    if normalized_degree == 0:
+        return latent
+    elif normalized_degree == 180:
+        return torch.flip(latent, dims=[3])  # Flip width dimension
+    elif normalized_degree == 90:
+        return torch.rot90(latent, k=1, dims=(2, 3))  # Rotate spatial dimensions
+    elif normalized_degree == 270:
+        return torch.rot90(latent, k=3, dims=(2, 3))  # Rotate spatial dimensions
+    else:
+        # Round to nearest 90 degrees
+        rounded_degree = round(normalized_degree / 90) * 90
+        if rounded_degree == 360:
+            rounded_degree = 0
+        print(f"Warning: Degree {degree} rounded to {rounded_degree}")
+        return flip_latent(latent, rounded_degree)
 
 def save_parameters_to_file(out_dir, params_dict):
     """
