@@ -640,28 +640,28 @@ class SD3Inferencer:
             illusion_type,
             skip_layer_config,
         )
-        '''
+        
         # Calculates the clip_score (How close model is to prompt)
         for k, sample in enumerate(sample_history, start=1):
             if (k % 10) == 0:
                 latent = SD3LatentFormat().process_out(sample)
                 image = self.vae_decode(latent)
-                
-                #score = calculate_clip_score(image, prompts[0], self.clip_model, self.clip_preprocess)
-                #print("CLIP_SCORE:", score, " PROMPT: ", prompts[0])
-
-                #save_path = generate_filename(out_dir, prompts, step=k)
-                #print(save_path)
-                #image.save(save_path)
-
-                #image = ImageOps.flip(image)
-                #score = calculate_clip_score(image, prompts[1], self.clip_model, self.clip_preprocess)
-                #print("CLIP_SCORE:", score, " PROMPT: ", prompts[1])
+                '''
+                score = calculate_clip_score(image, prompts[0], self.clip_model, self.clip_preprocess)
+                print("CLIP_SCORE:", score, " PROMPT: ", prompts[0])
 
                 save_path = generate_filename(out_dir, prompts, step=k)
                 print(save_path)
                 image.save(save_path)
-        '''
+
+                image = ImageOps.flip(image)
+                score = calculate_clip_score(image, prompts[1], self.clip_model, self.clip_preprocess)
+                print("CLIP_SCORE:", score, " PROMPT: ", prompts[1])'''
+
+                save_path = generate_filename(out_dir, prompts, step=k)
+                print(save_path)
+                image.save(save_path)
+        
             
         image = self.vae_decode(sampled_latent)
         save_path = generate_filename(out_dir, prompts, step=i)
@@ -866,7 +866,6 @@ class ContinuousSD3Inferencer(SD3Inferencer):
     ):
         # Store initial parameters
         current_params = locals().copy()
-        breakpoint()
         
         while True:
             command = input("\nEnter 'continue(c)' to create an image, or 'quit(q)' to exit: ").lower()

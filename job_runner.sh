@@ -16,6 +16,7 @@ DEFAULT_PARAMS=(
     "--method_param 0.1"
     "--seed_type fixed"
     "--skip_layer_cfg True"
+    "--illusion_type 1"
 )
 
 # Function to print usage

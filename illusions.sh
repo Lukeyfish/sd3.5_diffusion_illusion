@@ -9,19 +9,18 @@ INIT_IMAGE_B="input_images/EMMY_CROPPED.jpg"
 MODEL="models/sd3.5_medium.safetensors"
 STEPS=50
 CFG=7.5 
-VERBOSE="False"
+VERBOSE="True"
 DENOISE=1.0 
 SCHEDULER="linear" # Sigma scheduler, (linear, quadratic, cosine, logarithmic, custom)
 
 ILLUSION_TYPE="1" # 90, 180, 1 for flip
-METHOD="mean" # Method for latent combination (mean, alternate, attention, frequency, gradient, feature_mapping)
-METHOD_PARAM="0.001" # Specific kwargs required depending on method, value excluded if not needed:
-#     mean:                         (Closer to PROMPT_A) - <<<<<<< 0.0 (default) >>>>>>> + (closer to PROMPT_B)
+METHOD="dual_attention" # Method for latent combination (mean, alternate, attention, frequency, gradient, feature_mapping)
+METHOD_PARAM="0.3" # Specific kwargs required depending on method, value excluded if not needed:
+#     mean:                         (Closer to PROMPT_B) - <<<<<<< 0.0 (default) >>>>>>> + (closer to PROMPT_A)
 #     attention:                (very sharp attention) 0.1 <<<<<<< 1.0 (default) >>>>>>> 10 (soft attention, uniform blending)
 #     frequency:  (takes all frequencies from image B) 0.0 <<<<<<< 0.5 (default) >>>>>>> 1.0 (takes all frequencies from image A)
 
-CONTINUOUS="True" # If you want to generate more than one image
-
+CONTINUOUS="False" # If you want to generate more than one image
 SEEDTYPE="fixed" # rand, roll, or fixed for replication
 SKIPLAYERCFG="False" # if True, potentially better struture and anatomy coherency from SD3.5-Medium
 

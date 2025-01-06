@@ -101,15 +101,18 @@ def sample_dpmpp_2m(
         extra_args["cond"] = conditioning_b
         x_flipped = flip_latent(x, illusion_type) # Flip latent
         features_b = model(x_flipped, sigmas[i] * s_in, **extra_args)
-        features_b = flip_latent(features_b, illusion_type)  # Flip latent back
-        
-        # Find shared and orientation-dependent features
-        shared_features = (features_a + features_b) / 2
-        orientation_features_a = features_a - shared_features
-        orientation_features_b = features_b - shared_features
-        
-        # Create orientation-dependent denoised result
-        denoised = shared_features + method_param * (orientation_features_a - orientation_features_b)
+        features_b = flip_latent(features_b, -illusion_type)  # Flip latent back
+
+
+        if method == "alternate":
+            method_param == i
+
+        denoised = merge_denoised_outputs(
+            denoised_a=features_a, 
+            denoised_b=features_b,
+            method=method, 
+            method_param=method_param
+            )
         
         # Calculate timesteps
         t, t_next = t_fn(sigmas[i]), t_fn(sigmas[i + 1])
