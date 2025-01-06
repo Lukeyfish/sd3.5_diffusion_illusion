@@ -12,6 +12,7 @@ import os
 import pickle
 import re
 import clip
+import sys
 
 import fire
 import numpy as np
@@ -268,6 +269,9 @@ SCHEDULER = "linear"
 
 # MODEL FOLDER
 MODEL_FOLDER = "models"
+
+# CONTINUOUS INFERENCE MODE 
+CONTINUOUS = False
 
 
 class SD3Inferencer:
@@ -636,9 +640,8 @@ class SD3Inferencer:
             illusion_type,
             skip_layer_config,
         )
-
+        '''
         # Calculates the clip_score (How close model is to prompt)
-        
         for k, sample in enumerate(sample_history, start=1):
             if (k % 10) == 0:
                 latent = SD3LatentFormat().process_out(sample)
@@ -658,12 +661,101 @@ class SD3Inferencer:
                 save_path = generate_filename(out_dir, prompts, step=k)
                 print(save_path)
                 image.save(save_path)
+        '''
             
         image = self.vae_decode(sampled_latent)
         save_path = generate_filename(out_dir, prompts, step=i)
         self.print(f"Saving to to {save_path}")
         image.save(save_path)
         self.print("Done")
+
+    def process(
+        self,
+        prompt_a,
+        prompt_b,
+        out_dir,
+        model,
+        controlnet_ckpt,
+        width,
+        height,
+        _steps,
+        _cfg,
+        _sampler,
+        _scheduler,
+        seed,
+        seed_type,
+        controlnet_cond_image,
+        init_image_a,
+        init_image_b,
+        denoise,
+        method,
+        method_param,
+        illusion_type,
+        skip_layer_config,
+    ):
+        print(f"\n You are using the SD3Inferencer meaning this will only generate 1 image. If you wish to generate more than one image, please use the ContinuousSD3Inferencer.")
+        print(f"You are generating an illusion with the following parameters: ")
+        print(f"Prompt_a: {prompt_a}")
+        print(f"Prompt_b: {prompt_b}")
+        print(f"Illusion_type: {illusion_type}")
+
+        #command = input(f"continue(y/n)").lower()
+        #if command == y:
+        
+        if isinstance(prompt_a, str):
+            if os.path.splitext(prompt_a)[-1] == ".txt":
+                with open(prompt_a, "r") as f:
+                    prompts = [l.strip() for l in f.readlines()]
+            else:
+                prompts = [prompt_a]
+
+        if isinstance(prompt_b, str):
+            if os.path.splitext(prompt_b)[-1] == ".txt":
+                with open(prompt_b, "r") as f:
+                    # Use extend to add lines to the list instead of appending a list
+                    prompts.extend([l.strip() for l in f.readlines()])
+            else:
+                prompts.append([prompt_b])
+
+        print("prompts: ", prompts)
+        print("len prompts: ", len(prompts))
+        
+        out_dir = os.path.join(
+            out_dir,
+            (
+                os.path.splitext(os.path.basename(model))[0]
+                + (
+                    "_" + os.path.splitext(os.path.basename(controlnet_ckpt))[0]
+                    if controlnet_ckpt is not None
+                    else ""
+                )
+            ),
+            generate_outdir_name(prompts, _steps, _cfg),
+        )
+        
+        os.makedirs(out_dir, exist_ok=False)
+        save_parameters_to_file(out_dir, locals()) # Save parameters for reproducability
+
+        self.gen_image(
+            prompts,
+            width,
+            height,
+            _steps,
+            _cfg,
+            _sampler,
+            _scheduler,
+            seed,
+            seed_type,
+            out_dir,
+            controlnet_cond_image,
+            init_image_a,
+            init_image_b,
+            denoise,
+            method,
+            method_param,
+            illusion_type,
+            skip_layer_config,
+        )
 
 
 CONFIGS = {
@@ -713,6 +805,152 @@ CONFIGS = {
     },
 }
 
+#################################################################################################
+### Continuous Inferencer
+#################################################################################################
+
+class ContinuousSD3Inferencer(SD3Inferencer):
+    def parse_bash_script(self, script_path="illusions.sh"):
+        """Parse the bash script to get current parameter values"""
+        params = {}
+        try:
+            with open(script_path, 'r') as file:
+                content = file.read()
+                
+            # Extract variable definitions using regex
+            pattern = r'^(\w+)="([^"]*)"'
+            matches = re.finditer(pattern, content, re.MULTILINE)
+            
+            for match in matches:
+                key, value = match.groups()
+                key = key.lower()
+                # Convert known numeric values
+                if key in ['steps', 'illusion_type']:
+                    params[key] = int(value)
+                elif key in ['cfg', 'denoise', 'method_param']:
+                    params[key] = float(value)
+                else:
+                    params[key] = value
+                    
+            return params
+        except FileNotFoundError:
+            print(f"Warning: Could not find bash script at {script_path}")
+            return None
+        except Exception as e:
+            print(f"Error parsing bash script: {e}")
+            return None
+        
+    def process(
+        self,
+        prompt_a,
+        prompt_b,
+        out_dir,
+        model,
+        controlnet_ckpt,
+        width,
+        height,
+        _steps,
+        _cfg,
+        _sampler,
+        _scheduler,
+        seed,
+        seed_type,
+        controlnet_cond_image,
+        init_image_a,
+        init_image_b,
+        denoise,
+        method,
+        method_param,
+        illusion_type,
+        skip_layer_config,
+    ):
+        # Store initial parameters
+        current_params = locals().copy()
+        breakpoint()
+        
+        while True:
+            command = input("\nEnter 'continue(c)' to create an image, or 'quit(q)' to exit: ").lower()
+            
+            if command == 'q':
+                print("Exiting...")
+                sys.exit()
+            
+            elif command == 'c':
+                # Update parameters based on launch script
+                bash_params = self.parse_bash_script()
+                if bash_params:
+                    # Update current_params with bash script values
+                    for key, value in bash_params.items():
+                        if key in current_params:
+                            # Handle special cases for parameters that need specific mapping
+                            if key == 'steps':
+                                current_params['_steps'] = value
+                            elif key == 'cfg':
+                                current_params['_cfg'] = value
+                            else:
+                                current_params[key] = value
+                    print("\nParameters reloaded from bash script!")
+
+                print(f"\nGenerating image with current parameters:")
+                print(f"Prompt A: {current_params['prompt_a']}")
+                print(f"Prompt B: {current_params['prompt_b']}")
+                print(f"Illusion type: {current_params['illusion_type']}")
+                print(f"Method: {current_params['method']}")
+                print(f"Method parameter: {current_params['method_param']}")
+                
+                if isinstance(current_params['prompt_a'], str):
+                    if os.path.splitext(current_params['prompt_a'])[-1] == ".txt":
+                        with open(current_params['prompt_a'], "r") as f:
+                            prompts = [l.strip() for l in f.readlines()]
+                    else:
+                        prompts = [current_params['prompt_a']]
+
+                if isinstance(current_params['prompt_b'], str):
+                    if os.path.splitext(current_params['prompt_b'])[-1] == ".txt":
+                        with open(current_params['prompt_b'], "r") as f:
+                            prompts.extend([l.strip() for l in f.readlines()])
+                    else:
+                        prompts.append(current_params['prompt_b'])
+
+                output_dir = os.path.join(
+                    current_params['out_dir'],
+                    (
+                        os.path.splitext(os.path.basename(current_params['model']))[0]
+                        + (
+                            "_" + os.path.splitext(os.path.basename(current_params['controlnet_ckpt']))[0]
+                            if current_params['controlnet_ckpt'] is not None
+                            else ""
+                        )
+                    ),
+                    generate_outdir_name(prompts, current_params['_steps'], current_params['_cfg']),
+                )
+                
+                os.makedirs(output_dir, exist_ok=True)
+                save_parameters_to_file(output_dir, current_params)
+
+                self.gen_image(
+                    prompts=prompts,
+                    width=current_params['width'],
+                    height=current_params['height'],
+                    steps=current_params['_steps'],
+                    cfg_scale=current_params['_cfg'],
+                    sampler=current_params['_sampler'],
+                    scheduler=current_params['_scheduler'],
+                    seed=current_params['seed'],
+                    seed_type=current_params['seed_type'],
+                    out_dir=output_dir,
+                    controlnet_cond_image=current_params['controlnet_cond_image'],
+                    init_image_a=current_params['init_image_a'],
+                    init_image_b=current_params['init_image_b'],
+                    denoise=current_params['denoise'],
+                    method=current_params['method'],
+                    method_param=current_params['method_param'],
+                    illusion_type=current_params['illusion_type'],
+                    skip_layer_config=current_params['skip_layer_config'],
+                )
+
+            else:
+                print("Unknown command. Please use 'continue(c)', 'update(u)', or 'quit(q)'")
 @torch.no_grad()
 def main(
     prompt_a=PROMPT_A,
@@ -741,6 +979,7 @@ def main(
     method=METHOD,
     method_param=METHOD_PARAM,
     model_folder=MODEL_FOLDER,
+    continuous=CONTINUOUS,
     text_encoder_device="cpu",
     **kwargs,
 ):
@@ -772,7 +1011,10 @@ def main(
         _sampler = sampler or controlnet_config.get("sampler", sampler)
         _scheduler = scheduler or config.get("scheduler", scheduler)
 
-    inferencer = SD3Inferencer()
+    if continuous:
+        inferencer = ContinuousSD3Inferencer()
+    else:
+        inferencer = SD3Inferencer()
 
     inferencer.load(
         model,
@@ -784,61 +1026,29 @@ def main(
         verbose,
     )
 
-    if isinstance(prompt_a, str):
-        if os.path.splitext(prompt_a)[-1] == ".txt":
-            with open(prompt_a, "r") as f:
-                prompts = [l.strip() for l in f.readlines()]
-        else:
-            prompts = [prompt_a]
-
-    if isinstance(prompt_b, str):
-        if os.path.splitext(prompt_b)[-1] == ".txt":
-            with open(prompt_b, "r") as f:
-                # Use extend to add lines to the list instead of appending a list
-                prompts.extend([l.strip() for l in f.readlines()])
-        else:
-            prompts.append([prompt_b])
-
-    print("prompts: ", prompts)
-    print("len prompts: ", len(prompts))
-    
-    out_dir = os.path.join(
-        out_dir,
-        (
-            os.path.splitext(os.path.basename(model))[0]
-            + (
-                "_" + os.path.splitext(os.path.basename(controlnet_ckpt))[0]
-                if controlnet_ckpt is not None
-                else ""
-            )
-        ),
-        generate_outdir_name(prompts, steps, cfg),
+    inferencer.process(
+        prompt_a=prompt_a,
+        prompt_b=prompt_b,
+        out_dir=out_dir,
+        model=model,
+        controlnet_ckpt=controlnet_ckpt,
+        width=width,
+        height=height,
+        _steps=_steps,
+        _cfg=_cfg,
+        _sampler=_sampler,
+        _scheduler=_scheduler,
+        seed=seed,
+        seed_type=seed_type,
+        controlnet_cond_image=controlnet_cond_image,
+        init_image_a=init_image_a,
+        init_image_b=init_image_b,
+        denoise=denoise,
+        method=method,
+        method_param=method_param,
+        illusion_type=illusion_type,
+        skip_layer_config=skip_layer_config,
     )
-    
-    os.makedirs(out_dir, exist_ok=False)
-    save_parameters_to_file(out_dir, locals()) # Save parameters for reproducability
-
-    inferencer.gen_image(
-        prompts,
-        width,
-        height,
-        _steps,
-        _cfg,
-        _sampler,
-        _scheduler,
-        seed,
-        seed_type,
-        out_dir,
-        controlnet_cond_image,
-        init_image_a,
-        init_image_b,
-        denoise,
-        method,
-        method_param,
-        illusion_type,
-        skip_layer_config,
-    )
-
 
 if __name__ == "__main__":
     fire.Fire(main)

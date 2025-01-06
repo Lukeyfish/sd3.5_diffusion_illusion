@@ -101,7 +101,7 @@ def sample_dpmpp_2m(
         extra_args["cond"] = conditioning_b
         x_flipped = flip_latent(x, illusion_type) # Flip latent
         features_b = model(x_flipped, sigmas[i] * s_in, **extra_args)
-        features_b = flip_latent(features_b, illusion_type)  # Flip back
+        features_b = flip_latent(features_b, illusion_type)  # Flip latent back
         
         # Find shared and orientation-dependent features
         shared_features = (features_a + features_b) / 2
