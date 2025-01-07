@@ -5,6 +5,7 @@ inputs/
 input_images/
 prompts/
 experiments/
+animations/
 .pdf
 
 # Byte-compiled / optimized / DLL files

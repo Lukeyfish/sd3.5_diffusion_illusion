@@ -18,7 +18,7 @@ from typing import Tuple
 
 import matplotlib.pyplot as plt
 
-from sd3_helpers import flip_latent, merge_denoised_outputs, flip_latent_with_blend
+from sd3_helpers import flip_latent, merge_denoised_outputs, flip_latent_with_blend, rotate_latent_tiles
 
 
 #################################################################################################
@@ -93,15 +93,20 @@ def sample_dpmpp_2m(
     latent_history = []
 
     for i in tqdm(range(len(sigmas) - 1)):
-        latent_history.append(x.detach().clone())
+        
         # Get features for both orientations
         extra_args["cond"] = conditioning_a
         features_a = model(x, sigmas[i] * s_in, **extra_args)
+        latent_history.append(features_a.detach().clone())
         
         extra_args["cond"] = conditioning_b
-        x_flipped = flip_latent(x, illusion_type) # Flip latent
+        #x_flipped = flip_latent(x, illusion_type) # Flip latent
+        x_flipped = rotate_latent_tiles(x,inverse=False,num_divisions=2)
         features_b = model(x_flipped, sigmas[i] * s_in, **extra_args)
-        features_b = flip_latent(features_b, -illusion_type)  # Flip latent back
+
+        latent_history.append(features_b.detach().clone())
+        features_b = rotate_latent_tiles(features_b,inverse=True,num_divisions=2)
+        #features_b = flip_latent(features_b, -illusion_type)  # Flip latent back
 
 
         if method == "alternate":

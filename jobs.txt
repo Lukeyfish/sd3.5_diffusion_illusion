@@ -5,6 +5,6 @@
 # Empty lines are ignored
 
 # Testing different methods
-[attentions_1] --method spatial_attention --steps 50
-[attentions_1] --method normalize --steps 50
-[attentions_1] --method transformer --steps 50
+[snake_2] --method dual_attention --seed_type rand --steps 40
+[snake_2] --method dual_attention --seed_type rand --steps 40
+[snake_2] --method dual_attention --seed_type rand --steps 40

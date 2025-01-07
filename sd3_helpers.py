@@ -62,57 +62,7 @@ def flip_latent_with_blend(latent: torch.Tensor, blend_zone: int = 4) -> torch.T
         
     return latent * (1 - mask) + flipped * mask
 
-def flip_latent(latent: torch.Tensor, degree: int = 0) -> torch.Tensor:
-    """
-    Flips or rotates a latent tensor based on the specified degree.
-    
-    Args:
-        latent (torch.Tensor): Input tensor of shape [batch_size, channels, height, width]
-        degree (int): Degree of rotation/flip. 
-            - Any degree will be normalized to 0, 90, 180, or 270
-            - Negative degrees work as counter-clockwise rotations
-            - -1 is reserved for vertical flip
-            - 1 is reserved for reverting vertical flip
-    
-    Returns:
-        torch.Tensor: Flipped/rotated tensor with same shape as input
-    
-    Example:
-        For a tensor of shape [1, 16, 128, 128]:
-        - Vertical/horizontal flips will operate on the 128x128 spatial dimensions
-        - Rotations preserve the batch and channel dimensions
-    """
-    # Verify input has 4 dimensions
-    if len(latent.shape) != 4:
-        raise ValueError(f"Expected 4D tensor [batch, channels, height, width], got shape {latent.shape}")
-    
-    # Special cases for vertical flip
-    if degree == -1:
-        return torch.flip(latent, dims=[2])  # Flip height dimension
-    elif degree == 1:  # Revert vertical flip
-        return torch.flip(latent, dims=[2])  # Flip height dimension
-    
-    # Normalize the degree to be between 0 and 360
-    normalized_degree = degree % 360
-    if normalized_degree < 0:
-        normalized_degree += 360
-        
-    # Now convert to one of the four standard rotations
-    if normalized_degree == 0:
-        return latent
-    elif normalized_degree == 180:
-        return torch.flip(latent, dims=[3])  # Flip width dimension
-    elif normalized_degree == 90:
-        return torch.rot90(latent, k=1, dims=(2, 3))  # Rotate spatial dimensions
-    elif normalized_degree == 270:
-        return torch.rot90(latent, k=3, dims=(2, 3))  # Rotate spatial dimensions
-    else:
-        # Round to nearest 90 degrees
-        rounded_degree = round(normalized_degree / 90) * 90
-        if rounded_degree == 360:
-            rounded_degree = 0
-        print(f"Warning: Degree {degree} rounded to {rounded_degree}")
-        return flip_latent(latent, rounded_degree)
+
 
 def save_parameters_to_file(out_dir, params_dict):
     """
@@ -218,7 +168,7 @@ def merge_denoised_outputs(denoised_a, denoised_b, method="mean", method_param=0
         return attention[:, 0:1] * denoised_a + attention[:, 1:2] * denoised_b
     
     elif method == "dual_attention":
-        # Channel attention (similar to your working example)
+        # Channel attention 
         channel_attn = torch.sigmoid(
             F.adaptive_avg_pool2d(denoised_a, 1) +
             F.adaptive_avg_pool2d(denoised_b, 1)
@@ -346,3 +296,82 @@ def rotate_tiles(image, num_divisions=4):
             output[:, y*tile_size:(y+1)*tile_size, x*tile_size:(x+1)*tile_size] = tile
 
     return output
+
+    
+def rotate_latent_tiles(latent, inverse=False, num_divisions=4):
+        
+        batch_size, channels, height, width = latent.shape
+        tile_size = width // num_divisions
+        tiles_x = width // tile_size
+        tiles_y = height // tile_size
+        
+        output = torch.zeros_like(latent)
+        
+        for b in range(batch_size):
+            for x in range(tiles_x):
+                for y in range(tiles_y):
+                    tile = latent[b:b+1, :, y*tile_size:(y+1)*tile_size, x*tile_size:(x+1)*tile_size]
+                    
+
+                    # Flips tiles depending on needed orientation
+                    if (x + y) % 2 == 0:
+                        tile = tile.rot90(-1 if inverse else 1, [2, 3])
+                    else:
+                        tile = tile.rot90(1 if inverse else -1, [2, 3])
+                    
+                    output[b:b+1, :, y*tile_size:(y+1)*tile_size, x*tile_size:(x+1)*tile_size] = tile
+        
+        return output
+
+    
+def flip_latent(latent: torch.Tensor, degree: int = 0) -> torch.Tensor:
+    """
+    Flips or rotates a latent tensor based on the specified degree.
+    
+    Args:
+        latent (torch.Tensor): Input tensor of shape [batch_size, channels, height, width]
+        degree (int): Degree of rotation/flip. 
+            - Any degree will be normalized to 0, 90, 180, or 270
+            - Negative degrees work as counter-clockwise rotations
+            - -1 is reserved for vertical flip
+            - 1 is reserved for reverting vertical flip
+    
+    Returns:
+        torch.Tensor: Flipped/rotated tensor with same shape as input
+    
+    Example:
+        For a tensor of shape [1, 16, 128, 128]:
+        - Vertical/horizontal flips will operate on the 128x128 spatial dimensions
+        - Rotations preserve the batch and channel dimensions
+    """
+    # Verify input has 4 dimensions
+    if len(latent.shape) != 4:
+        raise ValueError(f"Expected 4D tensor [batch, channels, height, width], got shape {latent.shape}")
+    
+    # Special cases for vertical flip
+    if degree == -1:
+        return torch.flip(latent, dims=[2])  # Flip height dimension
+    elif degree == 1:  # Revert vertical flip
+        return torch.flip(latent, dims=[2])  # Flip height dimension
+    
+    # Normalize the degree to be between 0 and 360
+    normalized_degree = degree % 360
+    if normalized_degree < 0:
+        normalized_degree += 360
+        
+    # Now convert to one of the four standard rotations
+    if normalized_degree == 0:
+        return latent
+    elif normalized_degree == 180:
+        return torch.flip(latent, dims=[3])  # Flip width dimension
+    elif normalized_degree == 90:
+        return torch.rot90(latent, k=1, dims=(2, 3))  # Rotate spatial dimensions
+    elif normalized_degree == 270:
+        return torch.rot90(latent, k=3, dims=(2, 3))  # Rotate spatial dimensions
+    else:
+        # Round to nearest 90 degrees
+        rounded_degree = round(normalized_degree / 90) * 90
+        if rounded_degree == 360:
+            rounded_degree = 0
+        print(f"Warning: Degree {degree} rounded to {rounded_degree}")
+        return flip_latent(latent, rounded_degree)
