@@ -101,11 +101,11 @@ def sample_dpmpp_2m(
         
         extra_args["cond"] = conditioning_b
         #x_flipped = flip_latent(x, illusion_type) # Flip latent
-        x_flipped = rotate_latent_tiles(x,inverse=False,num_divisions=2)
+        x_flipped = rotate_latent_tiles(x,inverse=False,num_divisions=4)
         features_b = model(x_flipped, sigmas[i] * s_in, **extra_args)
 
         latent_history.append(features_b.detach().clone())
-        features_b = rotate_latent_tiles(features_b,inverse=True,num_divisions=2)
+        features_b = rotate_latent_tiles(features_b,inverse=True,num_divisions=4)
         #features_b = flip_latent(features_b, -illusion_type)  # Flip latent back
 
 

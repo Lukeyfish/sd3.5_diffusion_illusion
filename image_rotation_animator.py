@@ -4,7 +4,7 @@ import numpy as np
 from PIL import ImageDraw
 
 class ImageAnimator:
-    def __init__(self, image_path, num_divisions=4, frames_per_rotation=30):
+    def __init__(self, image_path, num_divisions=4, frames_per_rotation=30, flip_dir=1):
         """
         Initialize the animator with the source image and animation parameters.
         
@@ -16,6 +16,7 @@ class ImageAnimator:
         self.image = Image.open(image_path).convert('RGBA')
         self.num_divisions = num_divisions
         self.frames_per_rotation = frames_per_rotation
+        self.flip_dir = flip_dir
         
     def _rotate_tile(self, tile, angle):
         """
@@ -61,9 +62,8 @@ class ImageAnimator:
                 # Create background with original unrotated image
                 background = Image.new('RGB',(tile_size,tile_size),(0,0,0,0))
                 
-                
                 # Calculate rotation angle
-                angle = progress * 90
+                angle = progress * 90 * self.flip_dir
                 
                 # Alternate rotation direction (checkerboard pattern)
                 if (x + y) % 2 == 0:
@@ -85,7 +85,7 @@ class ImageAnimator:
         """
         frames = []
         
-        # Generate frames for the rotation
+        # Generate frames for the rotation forward
         for i in range(self.frames_per_rotation + 1):
             progress = i / self.frames_per_rotation
             
@@ -95,7 +95,21 @@ class ImageAnimator:
             frame = self._process_image_tiles(eased_progress)
             frames.append(frame)
         
-        return frames
+        # Add pause (hold last frame)
+        pause_frame = [frames[-1]] * 50  # Hold the last frame for 10 frames
+        
+        # Generate frames for the rotation backward
+        for i in range(self.frames_per_rotation + 1):
+            progress = i / self.frames_per_rotation
+            
+            # Use sine easing for smoother motion
+            eased_progress = math.sin((1 - progress) * math.pi / 2)
+            
+            frame = self._process_image_tiles(eased_progress)
+            frames.append(frame)
+        
+        # Return frames with added pause
+        return frames[:self.frames_per_rotation + 1] + pause_frame + frames[self.frames_per_rotation + 1:]
 
     def save_animation(self, output_path, frame_duration=50, pause_duration=2000):
         """
@@ -130,11 +144,11 @@ class ImageAnimator:
 
 
 def main():
-    folder = "an_oil_painting_of_a_donutan_oil_painting_of_a_cup_of_co_s50_cfg7.5_2025-01-06T17-31-09"
-    file = "an_oil_painting_of_a_donutan_oil_painting_of_a_cup_of_co_000001.png"
+    folder = "an_oil_painting_of_a_chocolatean_oil_painting_of_a_cup_of_co_s70_cfg7.5_2025-01-10T14-24-20"
+    file = "an_oil_painting_of_a_chocolatean_oil_painting_of_a_cup_of_co_000001.png"
     path =  f"outputs/sd3.5_medium/{folder}/{file}"
-    processor = ImageAnimator(path, 3)
-    processor.save_animation(f"animations/FLOWERCOFFEE.gif", 50)
+    processor = ImageAnimator(path, 4, 30, 1)
+    processor.save_animation(f"animations/CHOCLATEDONUT_COFFEE_70_001.gif", 50)
 
 if __name__ == "__main__":
     main()
